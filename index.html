@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS CODE TASK - POZORA</title>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11">
-</script>
+    <title>JS CODE TASK - POZORA V1.0β</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --bg-primary: #ffffff;
@@ -251,7 +250,7 @@
         }
 
 
-/* ダークモード時の時間入力アイコンの色を白くする */
+        /* ダークモード時の時間入力アイコンの色を白くする */
         .dark input[type="time"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
             cursor: pointer;
@@ -326,7 +325,7 @@
 <div class="main-wrapper">
     <div class="container">
         <header>
-            <h1>JS CODE TASK - POZORA</h1>
+            <h1>JS CODE TASK - POZORA <span id="sys-time-display" style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);"></span></h1>
             <div class="header-controls">
                 <button class="icon-btn" id="console-toggle" onclick="scheduler.toggleConsole()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
@@ -361,7 +360,8 @@
     const ICONS = {
         chevronDown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
         play: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
-        trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
+        trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+        zap: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`
     };
 
     class Scheduler {
@@ -378,6 +378,14 @@
             this.initConsole();
             this.render();
             this.startLoop();
+
+            // --- ページ読み込み時にAutoRunがONのタスクを自動実行 ---
+            this.tasks.forEach(task => {
+                if (task.isAutoRun) {
+                    console.log(`[Auto-Run] Starting: ${task.name || 'Untitled'}`);
+                    this.executeTask(task);
+                }
+            });
         }
 
         initTheme() {
@@ -441,9 +449,10 @@
         addTask() {
             const newTask = {
                 id: Date.now().toString(), name: '',
-                code: `alert("タスクが実行されました！");\nreturn "完了";`,
+                code: `// ここにJSコードを書いてね\nconsole.log("Hello POZORA!");`,
                 schedule: Array(7).fill().map(() => ({ active: false, time: '09:00' })),
-                lastRun: null, lastStatus: 'idle', isExpanded: true
+                lastRun: null, lastStatus: 'idle', isExpanded: true,
+                isAutoRun: false // オートランフラグ
             };
             this.tasks.push(newTask);
             this.save();
@@ -491,6 +500,17 @@
             }
         }
 
+        // オートランの切り替え
+        toggleAutoRun(id) {
+            const task = this.tasks.find(t => t.id === id);
+            if(task) {
+                task.isAutoRun = !task.isAutoRun;
+                this.save();
+                this.render();
+                this.showToast(task.isAutoRun ? 'Auto-Run ON' : 'Auto-Run OFF');
+            }
+        }
+
         async executeTask(task, isManual = false) {
             if (!task) return;
             const taskName = task.name || 'Untitled Task';
@@ -530,14 +550,14 @@
             this.save();
         }
 
-startLoop() {
+        startLoop() {
+            const daysArr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             setInterval(() => {
                 const now = new Date();
+                const currentDay = now.getDay();
                 
-                // 【修正ポイント】
-                // 西暦では4(木)だけど、1引いて3(水)として扱う
-                // (マイナスになった時のために+7して%7する)
-                let currentDay = (now.getDay() - 1 + 7) % 7; 
+                const sysTimeEl = document.getElementById('sys-time-display');
+                if(sysTimeEl) sysTimeEl.textContent = `(Today: ${daysArr[currentDay]} ${now.toLocaleTimeString()})`;
 
                 const hours = String(now.getHours()).padStart(2, '0');
                 const mins = String(now.getMinutes()).padStart(2, '0');
@@ -555,6 +575,7 @@ startLoop() {
                 this.lastExecutedMinute = currentHHmm;
             }, 1000);
         }
+
         render() {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             this.container.innerHTML = this.tasks.map(task => `
@@ -565,6 +586,7 @@ startLoop() {
                             <input type="text" class="task-name-input" value="${task.name}" placeholder="Untitled Task" onclick="event.stopPropagation()" onchange="scheduler.updateTask('${task.id}', {name: this.value})">
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary);">
+                            ${task.isAutoRun ? `<span style="color: var(--success); font-size: 0.8rem; display: flex; align-items: center; gap: 2px;">${ICONS.zap} Auto</span>` : ''}
                             ${ICONS.chevronDown}
                         </div>
                     </div>
@@ -592,6 +614,9 @@ startLoop() {
                             <span class="last-run-status" id="status-${task.id}">${task.lastRun ? `Last run: ${task.lastRun}` : 'Ready'}</span>
                             <div style="display: flex; gap: 0.5rem;">
                                 <button class="danger" onclick="scheduler.deleteTask('${task.id}')">${ICONS.trash} Delete</button>
+                                <button class="${task.isAutoRun ? 'primary' : ''}" onclick="scheduler.toggleAutoRun('${task.id}')">
+                                    ${ICONS.zap} ${task.isAutoRun ? 'Auto: ON' : 'Auto: OFF'}
+                                </button>
                                 <button class="primary" onclick="scheduler.executeTask(scheduler.tasks.find(t => t.id === '${task.id}'), true)">${ICONS.play} Run Now</button>
                             </div>
                         </div>
